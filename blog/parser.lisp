@@ -486,7 +486,7 @@
 
 (defun add-final-table (s x)
   (aif (find s (state-action x) :key #'car)
-    (state-action-check it s 'r nil)
+    (state-action-check it s 'a nil)
     (push (list s 'a nil) (state-action x))))
 
 (defun add-reduce-table (s x rule)
