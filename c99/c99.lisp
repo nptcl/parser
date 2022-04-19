@@ -402,7 +402,9 @@
       direct-abstract-declarator #\( parameter-type-list #\))
 
 ;; (6.7.7)
-(terminal identifier typedef-identifier)
+;(terminal identifier)
+;(rule typedef-name -> identifier)
+(terminal typedef-identifier)
 (rule typedef-name -> typedef-identifier)
 
 ;; (6.7.8)

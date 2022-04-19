@@ -449,21 +449,21 @@
   (intern-state
     (goto-parse (state-list x) s)))
 
+(defun state-action-check-p (x y z a b c)
+  (and (eq b y)
+       (or (eql c z)
+           (and (rule-p c)
+                (rule-p z)
+                (eql (rule-index c)
+                     (rule-index z))))))
+
 (defun state-action-check (list a b c)
   (destructuring-bind (x y z) list
-    (unless (and (eq b y)
-                 (or (eql c z)
-                     (and (rule-p c)
-                          (rule-p z)
-                          (eql (rule-index c)
-                               (rule-index z)))))
-      ;(let ((*print-pretty* nil))
-      ;  (format t "~S, ~S~%" (list x y z) (list a b c)))
+    (unless (state-action-check-p x y z a b c)
+      ;(error "~S/~S error, ~S, ~S." y b list (list a b c))
       (when (rule-p z) (setq z (rule-left z)))
       (when (rule-p c) (setq c (rule-left c)))
-      (warn "~S/~S error, ~A, ~A." y b (list x y z) (list a b c))
-      ;(error "~S/~S error, ~S, ~S." y b list (list a b c))
-      )))
+      (warn "~S/~S error, ~A, ~A." y b (list x y z) (list a b c)))))
 
 (defun state-goto-check (list a b)
   (destructuring-bind (y) (cdr list)
