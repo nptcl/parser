@@ -62,7 +62,7 @@
 ;;
 ;;  Input
 ;;
-(defconstant *end* (intern "END" 'parse))
+(defvar *end* (intern "END" 'parse))
 (defvar *input*)
 
 (defun set-input (x)
@@ -449,7 +449,7 @@
   (intern-state
     (goto-parse (state-list x) s)))
 
-(defun state-action-check-p (x y z a b c)
+(defun state-action-check-p (y z b c)
   (and (eq b y)
        (or (eql c z)
            (and (rule-p c)
@@ -459,7 +459,7 @@
 
 (defun state-action-check (list a b c)
   (destructuring-bind (x y z) list
-    (unless (state-action-check-p x y z a b c)
+    (unless (state-action-check-p y z b c)
       ;(error "~S/~S error, ~S, ~S." y b list (list a b c))
       (when (rule-p z) (setq z (rule-left z)))
       (when (rule-p c) (setq c (rule-left c)))
@@ -880,8 +880,7 @@
       (parse::start (load-start cdr))
       (parse::state-index (load-state-index cdr))
       (parse::set (load-state-set cdr state))
-      (parse::state (load-state-list cdr state))
-      )))
+      (parse::state (load-state-list cdr state)))))
 
 (defun save-table (file)
   (with-open-file (output file :direction :output

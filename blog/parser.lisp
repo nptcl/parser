@@ -52,7 +52,7 @@
 ;;
 ;;  Input
 ;;
-(defconstant *end* (make-symbol "END"))
+(defvar *end* (make-symbol "END"))
 (defvar *input*)
 
 (defun set-input (x)
@@ -78,16 +78,13 @@
 
 (defun read-terminal (cdr)
   (dolist (x cdr)
-    (push x *terminal*)))
+    (pushnew x *terminal*)))
 
 (defmacro parse-terminal (&rest args)
   `(read-terminal ',args))
 
 (defun terminalp (x)
   (and (member x *terminal*) t))
-
-(defun non-terminal-p (x)
-  (not (terminalp x)))
 
 
 ;;  rule
@@ -109,6 +106,9 @@
 
 (defmacro parse-rule (&rest args)
   `(read-rule ',args))
+
+(defun non-terminal-p (x)
+  (and (member x *rule* :key #'rule-left) t))
 
 
 ;;  start
@@ -192,21 +192,19 @@
 ;;
 ;;  FIRST(X)
 ;;
-(defvar *first*)
-
-(declaim (ftype function first-call))
+(declaim (ftype function first-symbol))
 
 (defun first-right (x right)
-  (let ((*first* *first*))
-    (push x *first*)
-    (dolist (x right)
-      (aif (first-call x)
-        (return it)))))
+  (dolist (y right)
+    (when (eql x y)
+      (return nil))
+    (aif (first-symbol y)
+      (return it))))
 
 (defun first-rule (x)
   (let (list)
     (dolist (y *rule*)
-      (when (eq x (rule-left y))
+      (when (eql x (rule-left y))
         (push (rule-right y) list)))
     list))
 
@@ -217,15 +215,10 @@
         (pushnew y root)))
     root))
 
-(defun first-call (x)
-  (if (terminalp x)
-    (list x)
-    (unless (member x *first*)
-      (first-nonterm x))))
-
 (defun first-symbol (x)
-  (let (*first*)
-    (first-call x)))
+  (cond ((terminalp x) (list x))
+        ((non-terminal-p x) (first-nonterm x))
+        (t (error "Invalid symbol, ~S." x))))
 
 (defun first-parse (list)
   (when list
@@ -265,7 +258,7 @@
 (defun closure-grammar (b)
   (let (root)
     (dolist (inst *rule*)
-      (when (eq (rule-left inst) b)
+      (when (eql (rule-left inst) b)
         (push (rule-right inst) root)))
     root))
 
@@ -377,14 +370,14 @@
     (when (equalset list (state-list y) :test #'grammar-equal)
       (return y))))
 
+(defun intern-make-state (list)
+  (aprog1 (make-state :index *state-index* :list list)
+    (push it *state*)
+    (incf *state-index*)))
+
 (defun intern-state (list)
-  (aif (intern-find-state list)
-    (values it nil)
-    (values
-      (aprog1 (make-state :index *state-index* :list list)
-        (push it *state*)
-        (incf *state-index*))
-      t)))
+  (or (intern-find-state list)
+      (values (intern-make-state list) t)))
 
 
 ;;
@@ -409,14 +402,17 @@
   (intern-state
     (goto-parse (state-list x) s)))
 
+(defun state-action-check-p (y z b c)
+  (and (eq b y)
+       (or (eql c z)
+           (and (rule-p c)
+                (rule-p z)
+                (eql (rule-index c)
+                     (rule-index z))))))
+
 (defun state-action-check (list a b c)
   (destructuring-bind (y z) (cdr list)
-    (unless (and (eq b y)
-                 (or (eql c z)
-                     (and (rule-p c)
-                          (rule-p z)
-                          (eql (rule-index c)
-                               (rule-index z)))))
+    (unless (state-action-check-p y z b c)
       (error "~S/~S error, ~S, ~S." y b list (list a b c)))))
 
 (defun state-goto-check (list a b)
@@ -436,9 +432,9 @@
 
 (defun arrow-table (s x y)
   (let ((next (state-index y)))
-    (if (terminalp s)
-      (add-shift-table s x next)
-      (add-goto-table s x next))))
+    (cond ((terminalp s) (add-shift-table s x next))
+          ((non-terminal-p s) (add-goto-table s x next))
+          (t (error "Invalid symbol, ~S." s)))))
 
 (defun make-table-loop (x)
   (dolist (s (symbols-table x))
@@ -604,7 +600,7 @@
 
 (defun find-others-lalr (x list)
   (dolist (y list)
-    (and (not (eq x y))
+    (and (not (eql x y))
          (equal-state-lalr x y)
          (return t))))
 
